@@ -1,0 +1,46 @@
+# Node modules
+/node_modules/
+
+# React Native Packager
+*.log
+*.swp
+*.swo
+
+# Dependency directories
+/ios/Pods/
+
+# Xcode workspace settings
+xcuserdata/
+/*.xcworkspace
+
+# iOS build output
+/ios/build/
+/ios/DerivedData/
+
+# Android build output
+/android/build/
+/android/.gradle/
+/android/app/build/
+
+# JetBrains IDE files
+.idea/
+
+# VSCode settings
+.vscode/
+
+# Environment configuration
+.env
+.env.*
+
+# Expo
+.expo/
+.expo-shared/
+
+# macOS system files
+.DS_Store
+
+# Watchman configuration
+.watchmanconfig
+
+# Android Studio project files
+*.iml
