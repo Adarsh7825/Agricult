@@ -13,9 +13,12 @@ import {
     Animated,
     Dimensions,
     ScrollView,
+    Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import CustomButton from '../components/CustomButton';
+import { chatAPI } from '../services/apiService';
+import speechService from '../services/speechService';
 
 const { width } = Dimensions.get('window');
 
@@ -31,12 +34,12 @@ const initialMessages = [
 
 // Sample supported languages
 const languages = [
-    { id: 'en', name: 'English', selected: true },
-    { id: 'hi', name: 'हिन्दी', selected: false },
-    { id: 'mr', name: 'मराठी', selected: false },
-    { id: 'gu', name: 'ગુજરાતી', selected: false },
-    { id: 'ta', name: 'தமிழ்', selected: false },
-    { id: 'te', name: 'తెలుగు', selected: false },
+    { id: 'en-US', name: 'English', selected: true },
+    { id: 'hi-IN', name: 'हिन्दी', selected: false },
+    { id: 'mr-IN', name: 'मराठी', selected: false },
+    { id: 'gu-IN', name: 'ગુજરાતી', selected: false },
+    { id: 'ta-IN', name: 'தமிழ்', selected: false },
+    { id: 'te-IN', name: 'తెలుగు', selected: false },
 ];
 
 // Sample predefined questions
@@ -52,13 +55,64 @@ const ChatbotScreen = () => {
     const [messages, setMessages] = useState(initialMessages);
     const [inputText, setInputText] = useState('');
     const [isRecording, setIsRecording] = useState(false);
-    const [selectedLanguage, setSelectedLanguage] = useState('en');
+    const [selectedLanguage, setSelectedLanguage] = useState('en-US');
     const [showLanguageSelection, setShowLanguageSelection] = useState(false);
+    const [recordingStatus, setRecordingStatus] = useState('');
 
     // Animation values
     const langMenuHeight = useRef(new Animated.Value(0)).current;
     const micAnimation = useRef(new Animated.Value(1)).current;
     const flatListRef = useRef(null);
+
+    // Initialize speech recognition on component mount
+    useEffect(() => {
+        // Initialize speech recognition
+        const initSpeech = async () => {
+            const initialized = speechService.initialize();
+            if (!initialized && Platform.OS !== 'web') {
+                Alert.alert(
+                    'Speech Recognition Unavailable',
+                    'Speech recognition is not available on your device.'
+                );
+            }
+        };
+
+        initSpeech();
+
+        // Set up speech service event handlers
+        speechService.onSpeechStart = () => {
+            setRecordingStatus('Listening...');
+        };
+
+        speechService.onSpeechEnd = () => {
+            setRecordingStatus('');
+            setIsRecording(false);
+        };
+
+        speechService.onSpeechResults = (transcript) => {
+            setInputText(transcript);
+        };
+
+        speechService.onSpeechError = (error) => {
+            console.error('Speech recognition error:', error);
+            setRecordingStatus('');
+            setIsRecording(false);
+            Alert.alert(
+                'Speech Recognition Error',
+                'An error occurred while trying to recognize your speech.'
+            );
+        };
+
+        return () => {
+            // Clean up speech recognition
+            speechService.destroy();
+        };
+    }, []);
+
+    // Update speech service language when selected language changes
+    useEffect(() => {
+        speechService.setLanguage(selectedLanguage);
+    }, [selectedLanguage]);
 
     // Pulse animation for mic button when recording
     useEffect(() => {
@@ -103,7 +157,7 @@ const ChatbotScreen = () => {
     };
 
     // Handle sending a message
-    const handleSendMessage = () => {
+    const handleSendMessage = async () => {
         if (inputText.trim() === '') return;
 
         const newUserMessage = {
@@ -116,27 +170,67 @@ const ChatbotScreen = () => {
         setMessages([...messages, newUserMessage]);
         setInputText('');
 
-        // Simulate bot response after a short delay
-        setTimeout(() => {
-            const botResponse = {
-                id: (Date.now() + 1).toString(),
-                text: `This is a demo response to your query: "${inputText}"`,
+        try {
+            // Show typing indicator
+            const typingIndicator = {
+                id: 'typing-indicator',
+                text: 'Typing...',
                 sender: 'bot',
+                isTyping: true,
                 timestamp: new Date().getTime(),
             };
-            setMessages(prevMessages => [...prevMessages, botResponse]);
-        }, 1000);
+
+            setMessages(prevMessages => [...prevMessages, typingIndicator]);
+
+            // Call Flask API
+            const response = await chatAPI.sendMessage(inputText);
+
+            // Remove typing indicator and add actual response
+            setMessages(prevMessages =>
+                prevMessages
+                    .filter(msg => msg.id !== 'typing-indicator')
+                    .concat({
+                        id: Date.now().toString(),
+                        text: response.data.response,
+                        sender: 'bot',
+                        timestamp: new Date().getTime(),
+                    })
+            );
+        } catch (error) {
+            console.error('Chat error:', error);
+            // Remove typing indicator
+            setMessages(prevMessages =>
+                prevMessages
+                    .filter(msg => msg.id !== 'typing-indicator')
+                    .concat({
+                        id: Date.now().toString(),
+                        text: 'Sorry, I encountered an error. Please try again later.',
+                        sender: 'bot',
+                        timestamp: new Date().getTime(),
+                    })
+            );
+        }
     };
 
     // Toggle voice recording
-    const toggleRecording = () => {
-        setIsRecording(!isRecording);
-
-        // If stopping recording, simulate voice recognition result
+    const toggleRecording = async () => {
         if (isRecording) {
-            setTimeout(() => {
-                setInputText('What are the best practices for organic farming?');
-            }, 500);
+            // Stop recording
+            await speechService.stopRecording();
+            setIsRecording(false);
+            setRecordingStatus('');
+        } else {
+            // Start recording
+            const success = await speechService.startRecording();
+            if (success) {
+                setIsRecording(true);
+                setRecordingStatus('Listening...');
+            } else {
+                Alert.alert(
+                    'Speech Recognition Failed',
+                    'Failed to start speech recognition. Please try again.'
+                );
+            }
         }
     };
 
@@ -154,6 +248,7 @@ const ChatbotScreen = () => {
     // Render each message
     const renderMessage = ({ item }) => {
         const isBot = item.sender === 'bot';
+        const isTyping = item.isTyping;
 
         return (
             <View
@@ -174,9 +269,17 @@ const ChatbotScreen = () => {
                         isBot ? styles.botMessageBubble : styles.userMessageBubble,
                     ]}
                 >
-                    <Text style={[styles.messageText, isBot ? styles.botMessageText : styles.userMessageText]}>
-                        {item.text}
-                    </Text>
+                    {isTyping ? (
+                        <View style={styles.typingContainer}>
+                            <View style={styles.typingDot} />
+                            <View style={styles.typingDot} />
+                            <View style={styles.typingDot} />
+                        </View>
+                    ) : (
+                        <Text style={[styles.messageText, isBot ? styles.botMessageText : styles.userMessageText]}>
+                            {item.text}
+                        </Text>
+                    )}
                     <Text style={styles.timestampText}>{formatTime(item.timestamp)}</Text>
                 </View>
             </View>
@@ -265,6 +368,16 @@ const ChatbotScreen = () => {
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
+
+                {/* Speech Status */}
+                {recordingStatus ? (
+                    <View style={styles.speechStatusContainer}>
+                        <Text style={styles.speechStatusText}>
+                            <MaterialCommunityIcons name="microphone" size={16} color="#FF5252" />
+                            {' ' + recordingStatus}
+                        </Text>
+                    </View>
+                ) : null}
 
                 {/* Input Area */}
                 <View style={styles.inputContainer}>
@@ -447,6 +560,17 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#2E4053',
     },
+    speechStatusContainer: {
+        backgroundColor: 'rgba(255, 82, 82, 0.1)',
+        paddingVertical: 6,
+        paddingHorizontal: 16,
+        alignItems: 'center',
+    },
+    speechStatusText: {
+        color: '#FF5252',
+        fontSize: 14,
+        fontWeight: '500',
+    },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -488,6 +612,18 @@ const styles = StyleSheet.create({
     },
     disabledSendButton: {
         backgroundColor: '#CCCCCC',
+    },
+    typingContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    typingDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#4CAF50',
+        marginHorizontal: 2,
     },
 });
 

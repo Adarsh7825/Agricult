@@ -1,8 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import offlineManager from '../utils/OfflineManager';
 
 // Create the context
-const OfflineContext = createContext({
+export const OfflineContext = createContext({
     isOffline: false,
     pendingSyncCount: 0,
     lastSyncDate: null,
@@ -14,47 +13,54 @@ const OfflineContext = createContext({
 export const OfflineProvider = ({ children }) => {
     const [isOffline, setIsOffline] = useState(false);
     const [pendingSyncCount, setPendingSyncCount] = useState(0);
-    const [lastSyncDate, setLastSyncDate] = useState(null);
+    const [lastSyncDate, setLastSyncDate] = useState(new Date());
 
+    // Mock implementation of offline detection
     useEffect(() => {
-        // Subscribe to connection state changes
-        const unsubscribe = offlineManager.addConnectivityListener((isConnected) => {
-            setIsOffline(!isConnected);
+        // Simulate connection status changes
+        const intervalId = setInterval(() => {
+            // Randomly go offline occasionally (10% chance)
+            const goOffline = Math.random() < 0.1;
+            setIsOffline(goOffline);
 
-            // If connected, update last sync time
-            if (isConnected) {
+            if (!goOffline) {
+                // If "online", update last sync time
                 setLastSyncDate(new Date());
             }
-        });
+        }, 30000); // Check every 30 seconds
 
-        // Check sync queue status periodically
-        const intervalId = setInterval(async () => {
-            // In a real implementation, this would check the actual queue length
-            const queueLength = offlineManager.syncQueue?.length || 0;
-            setPendingSyncCount(queueLength);
-        }, 5000);
-
-        return () => {
-            unsubscribe();
-            clearInterval(intervalId);
-        };
+        return () => clearInterval(intervalId);
     }, []);
 
-    // Provide methods to interact with the offline manager
-    const storeData = async (key, data, addToSyncQueue = false) => {
-        return offlineManager.storeData(key, data, addToSyncQueue);
+    // Mock data storage functions
+    const storeData = async (key, data) => {
+        try {
+            console.log(`[Mock] Storing data for key: ${key}`);
+            return true;
+        } catch (error) {
+            console.error('Error storing data:', error);
+            return false;
+        }
     };
 
     const getData = async (key) => {
-        return offlineManager.getData(key);
+        try {
+            console.log(`[Mock] Getting data for key: ${key}`);
+            return null; // Mock implementation returns null
+        } catch (error) {
+            console.error('Error retrieving data:', error);
+            return null;
+        }
     };
 
     const syncNow = async () => {
         if (!isOffline) {
-            await offlineManager.synchronize();
-            setPendingSyncCount(offlineManager.syncQueue.length);
+            console.log('[Mock] Syncing data...');
+            setPendingSyncCount(0);
             setLastSyncDate(new Date());
+            return true;
         }
+        return false;
     };
 
     const value = {
@@ -64,6 +70,8 @@ export const OfflineProvider = ({ children }) => {
         storeData,
         getData,
         syncNow,
+        storeOfflineData: storeData,
+        getOfflineData: getData,
     };
 
     return (

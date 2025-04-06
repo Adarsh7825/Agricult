@@ -1,11 +1,13 @@
-import React from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View, Text } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, StatusBar, ActivityIndicator } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-
-// Import navigation
+import { OfflineProvider, useOffline } from './src/context/OfflineContext';
+import { LocalizationProvider } from './src/context/LocalizationContext';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { WeatherProvider } from './src/context/WeatherContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import LoadingScreen from './src/screens/LoadingScreen';
 
 // Import assets module for preloading
 import { Asset } from 'expo-asset';
@@ -14,34 +16,61 @@ import { Image } from 'react-native';
 // Import AppImages
 import AppImages from './src/utils/AppImages';
 
-// Import Context Providers
-import { OfflineProvider, useOffline } from './src/context/OfflineContext';
-import { LocalizationProvider, useLocalization } from './src/context/LocalizationContext';
+// Error boundary component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
 
-// Preload all images to avoid runtime loading issues
-const preloadImages = () => {
-  const images = Object.values(AppImages);
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
 
-  return images.map(image => {
-    if (typeof image === 'string') {
-      return Image.prefetch(image);
-    } else {
-      return Asset.fromModule(image).downloadAsync();
+  componentDidCatch(error, errorInfo) {
+    console.error('App Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Something went wrong</Text>
+          <Text style={styles.errorDetail}>{this.state.error?.message || 'Unknown error'}</Text>
+          <Text style={styles.retryText} onPress={() => this.setState({ hasError: false })}>
+            Tap to retry
+          </Text>
+        </View>
+      );
     }
-  });
+
+    return this.props.children;
+  }
+}
+
+// Auth loading component
+const AuthLoadingScreen = () => {
+  const { isLoading } = useAuth();
+
+  if (!isLoading) return null;
+
+  return (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color="#3498db" />
+    </View>
+  );
 };
 
-// Offline banner component to show connectivity status
+// Offline banner component to show when user is offline
 const OfflineBanner = () => {
   const { isOffline } = useOffline();
-  const { t } = useLocalization();
 
   if (!isOffline) return null;
 
   return (
     <View style={styles.offlineBanner}>
       <Text style={styles.offlineBannerText}>
-        {t('offline_message')}
+        You are offline. Some features may be limited.
       </Text>
     </View>
   );
@@ -54,49 +83,115 @@ const AppContent = () => {
       <StatusBar style="auto" />
       <AppNavigator />
       <OfflineBanner />
+      <AuthLoadingScreen />
     </>
   );
 };
 
-export default function App() {
-  // Load assets
-  React.useEffect(() => {
-    preloadImages();
+// Main app component
+const App = () => {
+  const [isReady, setIsReady] = useState(false);
+
+  // Simulate app initialization process
+  useEffect(() => {
+    const initialize = async () => {
+      try {
+        // Simulate loading resources, initializing services, etc.
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        setIsReady(true);
+      } catch (error) {
+        console.error('Initialization error:', error);
+        // Handle initialization error
+        setIsReady(true); // Still set ready to true to avoid app hanging
+      }
+    };
+
+    initialize();
   }, []);
 
-  return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+  if (!isReady) {
+    return (
       <SafeAreaProvider>
         <LocalizationProvider>
+          <LoadingScreen message="Starting up..." />
+        </LocalizationProvider>
+      </SafeAreaProvider>
+    );
+  }
+
+  return (
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <StatusBar backgroundColor="#4CAF50" barStyle="light-content" />
+        <LocalizationProvider>
           <OfflineProvider>
-            <AppContent />
+            <AuthProvider>
+              <WeatherProvider>
+                <NavigationContainer>
+                  <AppNavigator />
+                  <OfflineBanner />
+                </NavigationContainer>
+              </WeatherProvider>
+            </AuthProvider>
           </OfflineProvider>
         </LocalizationProvider>
       </SafeAreaProvider>
-    </GestureHandlerRootView>
+    </ErrorBoundary>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
+  offlineBanner: {
+    backgroundColor: '#EF6C00',
+    padding: 10,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  offlineBanner: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#F57C00',
-    padding: 8,
     zIndex: 1000,
   },
   offlineBannerText: {
-    color: '#FFFFFF',
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  loadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2000,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f8f8',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#e74c3c',
+    marginBottom: 10,
+  },
+  errorDetail: {
+    fontSize: 14,
+    color: '#7f8c8d',
     textAlign: 'center',
-    fontSize: 12,
+    marginBottom: 20,
+  },
+  retryText: {
+    fontSize: 16,
+    color: '#3498db',
     fontWeight: 'bold',
   },
 });
+
+export default App;
+

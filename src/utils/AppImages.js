@@ -5,6 +5,7 @@ const AppImages = {
     splashIcon: require('../../assets/splash-icon.png'),
     adaptiveIcon: require('../../assets/adaptive-icon.png'),
     favicon: require('../../assets/favicon.png'),
+    logo: require('../../assets/icon.png'),
 
     // Agricultural product images
     potato: require('../../assets/icon.png'),

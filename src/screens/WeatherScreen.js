@@ -5,141 +5,148 @@ import {
     StyleSheet,
     ScrollView,
     ActivityIndicator,
-    Image,
+    TouchableOpacity,
+    RefreshControl,
     SafeAreaView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useOffline } from '../context/OfflineContext';
 import { useLocalization } from '../context/LocalizationContext';
-import offlineManager from '../utils/OfflineManager';
-
-// Mock weather data for offline usage
-const mockWeatherData = {
-    current: {
-        temp: 28,
-        humidity: 65,
-        wind_speed: 5.2,
-        weather: [{ main: 'Clear', description: 'clear sky', icon: '01d' }],
-    },
-    daily: [
-        {
-            dt: Date.now() / 1000,
-            temp: { min: 22, max: 30 },
-            weather: [{ main: 'Clear', description: 'clear sky', icon: '01d' }],
-        },
-        {
-            dt: Date.now() / 1000 + 86400,
-            temp: { min: 23, max: 31 },
-            weather: [{ main: 'Clouds', description: 'scattered clouds', icon: '03d' }],
-        },
-        {
-            dt: Date.now() / 1000 + 86400 * 2,
-            temp: { min: 24, max: 29 },
-            weather: [{ main: 'Rain', description: 'light rain', icon: '10d' }],
-        },
-        {
-            dt: Date.now() / 1000 + 86400 * 3,
-            temp: { min: 22, max: 28 },
-            weather: [{ main: 'Rain', description: 'moderate rain', icon: '10d' }],
-        },
-        {
-            dt: Date.now() / 1000 + 86400 * 4,
-            temp: { min: 21, max: 27 },
-            weather: [{ main: 'Clouds', description: 'broken clouds', icon: '04d' }],
-        },
-    ],
-    location: 'Default Location'
-};
+import { useWeather } from '../context/WeatherContext';
 
 const WeatherScreen = () => {
     const { isOffline } = useOffline();
     const { t, locale } = useLocalization();
+    const {
+        currentWeather,
+        forecast,
+        alerts,
+        isLoading,
+        error,
+        lastUpdated,
+        fetchCurrentWeather,
+        fetchWeatherForecast,
+        fetchWeatherAlerts,
+        refreshWeatherData
+    } = useWeather();
 
-    const [weatherData, setWeatherData] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [lastUpdated, setLastUpdated] = useState(null);
+    const [refreshing, setRefreshing] = useState(false);
+    const [userLocation, setUserLocation] = useState({ lat: 28.6139, lon: 77.2090 }); // Default: Delhi
 
     useEffect(() => {
-        fetchWeatherData();
+        loadWeatherData();
     }, []);
 
-    const fetchWeatherData = async () => {
+    const loadWeatherData = async () => {
         try {
-            setLoading(true);
-
-            // Check for cached weather data
-            const cachedWeather = await offlineManager.getData('CACHED_WEATHER');
-            const cachedTime = await offlineManager.getData('WEATHER_CACHE_TIME');
-
-            if (isOffline) {
-                // In offline mode, use cached data or mock data
-                if (cachedWeather) {
-                    setWeatherData(cachedWeather);
-                    setLastUpdated(new Date(cachedTime || Date.now()).toLocaleString());
-                } else {
-                    // Use mock data if no cached data available
-                    setWeatherData(mockWeatherData);
-                    setLastUpdated(t('offline_data'));
-                }
-            } else {
-                // In online mode
-                const cacheExpired = !cachedTime || (Date.now() - cachedTime > 60 * 60 * 1000); // 1 hour
-
-                if (cacheExpired) {
-                    // Simulate API call
-                    // In a real app, this would be a fetch call to a weather API
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-
-                    // For the MVP, we'll use mock data as if it came from an API
-                    const apiData = { ...mockWeatherData, location: 'Current Location' };
-
-                    // Cache the new data
-                    await offlineManager.storeData('CACHED_WEATHER', apiData, true);
-                    await offlineManager.storeData('WEATHER_CACHE_TIME', Date.now(), true);
-
-                    setWeatherData(apiData);
-                    setLastUpdated(new Date().toLocaleString());
-                } else {
-                    // Use cached data if it's still valid
-                    setWeatherData(cachedWeather);
-                    setLastUpdated(new Date(cachedTime).toLocaleString());
-                }
-            }
+            // Load weather data from API or cache
+            await fetchCurrentWeather({ lat: userLocation.lat, lon: userLocation.lon });
+            await fetchWeatherForecast({ lat: userLocation.lat, lon: userLocation.lon, days: 5 });
+            await fetchWeatherAlerts({ lat: userLocation.lat, lon: userLocation.lon });
         } catch (err) {
-            console.error('Failed to fetch weather data:', err);
-            setError(err.message);
-        } finally {
-            setLoading(false);
+            console.error('Failed to load weather data:', err);
         }
     };
 
-    // Format date from timestamp
-    const formatDate = (timestamp) => {
-        const date = new Date(timestamp * 1000);
+    const onRefresh = async () => {
+        setRefreshing(true);
+        try {
+            await refreshWeatherData({ lat: userLocation.lat, lon: userLocation.lon, days: 5 });
+        } catch (err) {
+            console.error('Failed to refresh weather data:', err);
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
+    // Format date
+    const formatDate = (dateString) => {
+        const date = new Date(dateString);
         const options = { weekday: 'short', month: 'short', day: 'numeric' };
         return date.toLocaleDateString(locale, options);
     };
 
     // Get weather icon
-    const getWeatherIcon = (iconCode) => {
-        // In a real app, we would use actual weather icons from the API
-        // For MVP, we'll use Ionicons based on the weather condition
-        switch (iconCode.substr(0, 2)) {
-            case '01': return 'sunny';
-            case '02': return 'partly-sunny';
-            case '03':
-            case '04': return 'cloudy';
-            case '09':
-            case '10': return 'rainy';
-            case '11': return 'thunderstorm';
-            case '13': return 'snow';
-            case '50': return 'cloud';
-            default: return 'cloud';
-        }
+    const getWeatherIcon = (condition) => {
+        const conditions = {
+            'Clear': 'sunny',
+            'Sunny': 'sunny',
+            'Partly cloudy': 'partly-sunny',
+            'Cloudy': 'cloudy',
+            'Overcast': 'cloudy',
+            'Mist': 'cloud',
+            'Patchy rain possible': 'rainy',
+            'Patchy snow possible': 'snow',
+            'Patchy sleet possible': 'snow',
+            'Patchy freezing drizzle possible': 'snow',
+            'Thundery outbreaks possible': 'thunderstorm',
+            'Blowing snow': 'snow',
+            'Blizzard': 'snow',
+            'Fog': 'cloud',
+            'Freezing fog': 'cloud',
+            'Patchy light drizzle': 'rainy',
+            'Light drizzle': 'rainy',
+            'Freezing drizzle': 'snow',
+            'Heavy freezing drizzle': 'snow',
+            'Patchy light rain': 'rainy',
+            'Light rain': 'rainy',
+            'Moderate rain at times': 'rainy',
+            'Moderate rain': 'rainy',
+            'Heavy rain at times': 'rainy',
+            'Heavy rain': 'rainy',
+            'Light freezing rain': 'snow',
+            'Moderate or heavy freezing rain': 'snow',
+            'Light sleet': 'snow',
+            'Moderate or heavy sleet': 'snow',
+            'Patchy light snow': 'snow',
+            'Light snow': 'snow',
+            'Patchy moderate snow': 'snow',
+            'Moderate snow': 'snow',
+            'Patchy heavy snow': 'snow',
+            'Heavy snow': 'snow',
+            'Ice pellets': 'snow',
+            'Light rain shower': 'rainy',
+            'Moderate or heavy rain shower': 'rainy',
+            'Torrential rain shower': 'rainy',
+            'Light sleet showers': 'snow',
+            'Moderate or heavy sleet showers': 'snow',
+            'Light snow showers': 'snow',
+            'Moderate or heavy snow showers': 'snow',
+            'Light showers of ice pellets': 'snow',
+            'Moderate or heavy showers of ice pellets': 'snow',
+            'Patchy light rain with thunder': 'thunderstorm',
+            'Moderate or heavy rain with thunder': 'thunderstorm',
+            'Patchy light snow with thunder': 'thunderstorm',
+            'Moderate or heavy snow with thunder': 'thunderstorm',
+        };
+
+        return conditions[condition] || 'cloud';
     };
 
-    if (loading) {
+    // Render alerts section
+    const renderAlerts = () => {
+        if (!alerts || alerts.length === 0) {
+            return null;
+        }
+
+        return (
+            <View style={styles.alertsContainer}>
+                <Text style={styles.alertsTitle}>{t('weather_alerts')}</Text>
+                {alerts.map((alert, index) => (
+                    <View key={index} style={styles.alertItem}>
+                        <MaterialCommunityIcons name="alert" size={24} color="#e74c3c" />
+                        <View style={styles.alertContent}>
+                            <Text style={styles.alertHeadline}>{alert.headline}</Text>
+                            <Text style={styles.alertDetails}>{alert.event} - {alert.severity}</Text>
+                            <Text style={styles.alertAreas}>{t('affected_areas')}: {alert.areas}</Text>
+                        </View>
+                    </View>
+                ))}
+            </View>
+        );
+    };
+
+    if (isLoading && !currentWeather && !forecast) {
         return (
             <SafeAreaView style={styles.container}>
                 <View style={styles.loadingContainer}>
@@ -150,13 +157,27 @@ const WeatherScreen = () => {
         );
     }
 
-    if (error) {
+    if (error && !currentWeather && !forecast) {
         return (
             <SafeAreaView style={styles.container}>
                 <View style={styles.errorContainer}>
                     <Ionicons name="warning" size={50} color="#F57C00" />
                     <Text style={styles.errorText}>{error}</Text>
                     <Text style={styles.errorSubtext}>{t('weather_error')}</Text>
+                    <TouchableOpacity style={styles.retryButton} onPress={loadWeatherData}>
+                        <Text style={styles.retryButtonText}>{t('retry')}</Text>
+                    </TouchableOpacity>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    if (!currentWeather || !forecast) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#3E7D44" />
+                    <Text style={styles.loadingText}>{t('loading')}</Text>
                 </View>
             </SafeAreaView>
         );
@@ -164,58 +185,70 @@ const WeatherScreen = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <ScrollView contentContainerStyle={styles.scrollContainer}>
+            <ScrollView
+                contentContainerStyle={styles.scrollContainer}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }
+            >
                 {/* Current Weather */}
                 <View style={styles.currentWeatherContainer}>
-                    <Text style={styles.locationText}>{weatherData.location}</Text>
+                    <Text style={styles.locationText}>
+                        {currentWeather.location.name}, {currentWeather.location.country}
+                    </Text>
 
                     <View style={styles.weatherMain}>
                         <Ionicons
-                            name={getWeatherIcon(weatherData.current.weather[0].icon)}
+                            name={getWeatherIcon(currentWeather.current.condition.text)}
                             size={80}
                             color="#3E7D44"
                         />
-                        <Text style={styles.tempText}>{Math.round(weatherData.current.temp)}°C</Text>
+                        <Text style={styles.tempText}>
+                            {Math.round(currentWeather.current.temperature.c)}°C
+                        </Text>
                     </View>
 
                     <Text style={styles.weatherDescription}>
-                        {weatherData.current.weather[0].description}
+                        {currentWeather.current.condition.text}
                     </Text>
 
                     <View style={styles.weatherDetails}>
                         <View style={styles.detailItem}>
                             <Ionicons name="water" size={22} color="#3E7D44" />
                             <Text style={styles.detailText}>
-                                {weatherData.current.humidity}%
+                                {currentWeather.current.humidity}%
                             </Text>
                         </View>
                         <View style={styles.detailItem}>
                             <Ionicons name="speedometer" size={22} color="#3E7D44" />
                             <Text style={styles.detailText}>
-                                {weatherData.current.wind_speed} km/h
+                                {currentWeather.current.wind.kph} km/h
                             </Text>
                         </View>
                     </View>
                 </View>
 
+                {/* Weather Alerts */}
+                {renderAlerts()}
+
                 {/* 5-Day Forecast */}
                 <View style={styles.forecastContainer}>
                     <Text style={styles.forecastTitle}>{t('5_day_forecast')}</Text>
 
-                    {weatherData.daily.map((day, index) => (
+                    {forecast.forecast.map((day, index) => (
                         <View key={index} style={styles.forecastDay}>
-                            <Text style={styles.dayText}>{formatDate(day.dt)}</Text>
+                            <Text style={styles.dayText}>{formatDate(day.date)}</Text>
 
                             <View style={styles.dayDetails}>
                                 <Ionicons
-                                    name={getWeatherIcon(day.weather[0].icon)}
+                                    name={getWeatherIcon(day.condition)}
                                     size={28}
                                     color="#3E7D44"
                                 />
 
                                 <View style={styles.tempRange}>
-                                    <Text style={styles.maxTemp}>{Math.round(day.temp.max)}°</Text>
-                                    <Text style={styles.minTemp}>{Math.round(day.temp.min)}°</Text>
+                                    <Text style={styles.maxTemp}>{Math.round(day.maxTemp)}°</Text>
+                                    <Text style={styles.minTemp}>{Math.round(day.minTemp)}°</Text>
                                 </View>
                             </View>
                         </View>
@@ -226,7 +259,7 @@ const WeatherScreen = () => {
                 <View style={styles.lastUpdatedContainer}>
                     <Ionicons name="time-outline" size={16} color="#757575" />
                     <Text style={styles.lastUpdatedText}>
-                        {t('last_updated')}: {lastUpdated}
+                        {t('last_updated')}: {lastUpdated ? lastUpdated.toLocaleString() : 'N/A'}
                     </Text>
                 </View>
 
@@ -276,6 +309,18 @@ const styles = StyleSheet.create({
         color: '#999999',
         textAlign: 'center',
     },
+    retryButton: {
+        marginTop: 20,
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        backgroundColor: '#3E7D44',
+        borderRadius: 8,
+    },
+    retryButtonText: {
+        color: '#FFFFFF',
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
     currentWeatherContainer: {
         backgroundColor: '#FFFFFF',
         borderRadius: 10,
@@ -293,6 +338,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#333333',
         marginBottom: 10,
+        textAlign: 'center',
     },
     weatherMain: {
         flexDirection: 'row',
@@ -400,6 +446,48 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#F57C00',
         marginLeft: 8,
+    },
+    alertsContainer: {
+        backgroundColor: '#FFEBEE',
+        borderRadius: 10,
+        margin: 16,
+        padding: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    alertsTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#C62828',
+        marginBottom: 16,
+    },
+    alertItem: {
+        flexDirection: 'row',
+        marginBottom: 12,
+        paddingBottom: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#FFCDD2',
+    },
+    alertContent: {
+        flex: 1,
+        marginLeft: 10,
+    },
+    alertHeadline: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333333',
+    },
+    alertDetails: {
+        fontSize: 14,
+        color: '#666666',
+        marginVertical: 4,
+    },
+    alertAreas: {
+        fontSize: 12,
+        color: '#757575',
     },
 });
 

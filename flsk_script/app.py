@@ -1,8 +1,10 @@
 from flask import Flask, request, jsonify
 import google.generativeai as genai
 import os
- 
+from flask_cors import CORS
+
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 # GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key="AIzaSyBhgPS0QP_1DZrabpfqttB0ocf-P17Ds0s")
@@ -22,9 +24,6 @@ If a user asks something unrelated (e.g. politics, history, movies, tech), respo
 model = genai.GenerativeModel('gemini-1.5-pro')
 
 
-
-    
-
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.get_json()
@@ -42,13 +41,12 @@ def chat():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
-
 
 
 @app.route("/", methods=["GET"])
 def index():
     return "🌾 Gemini 1.5 Farmer Chatbot is running!"
 
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
