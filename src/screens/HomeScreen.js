@@ -88,7 +88,7 @@ const HomeScreen = ({ navigation }) => {
                 >
                     <View style={styles.greetingContainer}>
                         <Text style={styles.welcomeText}>Welcome to</Text>
-                        <Text style={styles.appName}>Agricult</Text>
+                        <Text style={styles.appName}>SmartSheti</Text>
                         <Text style={styles.tagline}>Your Smart Farming Assistant</Text>
                     </View>
                     <View style={styles.weatherContainer}>
