@@ -1,4 +1,4 @@
-# Agricult - Smart Farming Assistant
+# SmartSheti  - Smart Farming Assistant
 
 A mobile application built to empower farmers with AI-powered tools, market access, and agricultural insights while addressing the specific challenges and limitations of rural agricultural contexts.
 
