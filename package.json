@@ -6,18 +6,30 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "start-offline": "REACT_NATIVE_OFFLINE_MODE=true expo start",
+    "build:android": "expo build:android",
+    "build:ios": "expo build:ios"
   },
   "dependencies": {
     "@expo/metro-runtime": "~4.0.1",
     "@expo/vector-icons": "^14.0.4",
+    "@react-native-async-storage/async-storage": "^2.1.2",
+    "@react-native-community/netinfo": "^11.4.1",
     "@react-navigation/bottom-tabs": "^7.3.9",
     "@react-navigation/native": "^7.1.5",
     "@react-navigation/native-stack": "^7.3.9",
     "expo": "~52.0.43",
     "expo-asset": "^11.0.5",
+    "expo-av": "^15.0.2",
+    "expo-file-system": "^16.0.7",
+    "expo-image-manipulator": "^11.8.0",
+    "expo-image-picker": "^14.7.1",
+    "expo-localization": "^14.6.0",
+    "expo-screen-orientation": "^8.0.4",
+    "expo-sqlite": "^13.2.2",
     "expo-status-bar": "~2.0.1",
-    "framer-motion": "^12.6.3",
+    "i18n-js": "^4.3.2",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-native": "0.76.9",
@@ -31,7 +43,8 @@
     "react-native-web": "~0.19.13"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "@babel/core": "^7.20.0",
+    "babel-plugin-transform-inline-environment-variables": "^0.4.4"
   },
   "private": true
 }
