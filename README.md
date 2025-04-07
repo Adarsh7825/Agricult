@@ -34,25 +34,25 @@ A mobile application built to empower farmers with AI-powered tools, market acce
   <tr>
     <td align="center">
       <img src="https://github.com/user-attachments/assets/5d156f80-f62d-49eb-9664-ee8b4662d31f" width="200"/><br/>
-      <em>Welcome Screen: Entry point to SmartSheti</em>
-    </td>
-    <td align="center">
-      <img src="https://github.com/user-attachments/assets/aded5af1-0d72-4a06-b0d8-50161e011bd0" width="200"/><br/>
       <em>Home Dashboard: Quick access to features</em>
     </td>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/22b829ed-d4f8-4354-a44c-f813a16fa8d9" width="200"/><br/>
+      <img src="https://github.com/user-attachments/assets/aded5af1-0d72-4a06-b0d8-50161e011bd0" width="200"/><br/>
       <em>Crop Disease Detection</em>
+    </td>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/22b829ed-d4f8-4354-a44c-f813a16fa8d9" width="200"/><br/>
+      <em>Agricultural Marketplace</em>
     </td>
   </tr>
   <tr>
     <td align="center">
       <img src="https://github.com/user-attachments/assets/f307a22b-2cbd-406b-8346-23314ac52e50" width="200"/><br/>
-      <em>Disease Analysis Results</em>
+      <em>Agricultural Marketplace</em>
     </td>
     <td align="center">
       <img src="https://github.com/user-attachments/assets/fb253d9b-6800-471a-976e-9b1120455c00" width="200"/><br/>
-      <em>Agricultural Marketplace</em>
+      <em>Farming Assistant Chatbot & Voice Input Feature	</em>
     </td>
     <td align="center">
       <img src="https://github.com/user-attachments/assets/1d1214ab-d60a-4f25-8fe7-abddcb33dbca" width="200"/><br/>
@@ -62,29 +62,29 @@ A mobile application built to empower farmers with AI-powered tools, market acce
   <tr>
     <td align="center">
       <img src="https://github.com/user-attachments/assets/1b2c6483-7b05-495c-ae02-fb735534b88e" width="200"/><br/>
-      <em>Price Prediction</em>
+      <em>Weather Information	</em>
     </td>
     <td align="center">
       <img src="https://github.com/user-attachments/assets/b90feaa3-e82f-487e-9a79-0729e5a2c637" width="200"/><br/>
-      <em>Historical Price Trends</em>
+      <em>Educational Content</em>
     </td>
     <td align="center">
       <img src="https://github.com/user-attachments/assets/7c1ff116-aef3-4b82-9128-2297d60a2c0f" width="200"/><br/>
-      <em>Farming Assistant Chatbot</em>
+      <em>Educational Content</em>
     </td>
   </tr>
   <tr>
     <td align="center">
       <img src="https://github.com/user-attachments/assets/e1146d38-e8e4-4523-a431-5fd6a1ba2cec" width="200"/><br/>
-      <em>Weather Information</em>
+      <em>Setting and Preferences</em>
     </td>
     <td align="center">
       <img src="https://github.com/user-attachments/assets/630b159f-1e35-430a-9400-24da64b4b07e" width="200"/><br/>
-      <em>Voice Input Feature</em>
+      <em>Price Prediction</em>
     </td>
     <td align="center">
       <img src="https://github.com/user-attachments/assets/eae2248d-9d90-4e80-8a3e-107b42851b6e" width="200"/><br/>
-      <em>Settings and Preferences</em>
+      <em>Historical Price Trends</em>
     </td>
   </tr>
 </table>
